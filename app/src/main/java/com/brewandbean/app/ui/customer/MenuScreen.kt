@@ -85,19 +85,26 @@ fun MenuScreen(
                         text = "\u2615 Brew & Bean",
                         fontFamily = FontFamily.Serif,
                         fontWeight = FontWeight.Bold,
-                        color = PrimaryColor
+                        color = PrimaryColor,
+                        fontSize = 20.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 },
                 actions = {
-                    TextButton(onClick = { com.brewandbean.app.util.LanguageManager.setEnglish(!isEn) }) {
-                        Text(text = if (isEn) "EN" else "TR", color = PrimaryColor, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    TextButton(
+                        onClick = { com.brewandbean.app.util.LanguageManager.setEnglish(!isEn) },
+                        contentPadding = PaddingValues(horizontal = 4.dp),
+                        modifier = Modifier.defaultMinSize(minWidth = 36.dp)
+                    ) {
+                        Text(text = if (isEn) "EN" else "TR", color = PrimaryColor, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     }
                     if (currentUser != null) {
                         if (currentUser!!.stars > 0) {
                             Surface(
                                 color = Color(0xFFFFF9C4),
                                 shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.padding(end = 8.dp).height(32.dp).align(Alignment.CenterVertically)
+                                modifier = Modifier.padding(end = 4.dp).height(32.dp).align(Alignment.CenterVertically)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
