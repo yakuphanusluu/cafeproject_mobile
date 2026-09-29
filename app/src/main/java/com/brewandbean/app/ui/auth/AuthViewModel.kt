@@ -33,6 +33,10 @@ class AuthViewModel @Inject constructor(
 
     val currentUser = repository.currentUser
 
+    fun refreshStars() {
+        repository.refreshStars()
+    }
+
     fun signInWithGoogle(idToken: String) {
         viewModelScope.launch {
             _isLoading.value = true

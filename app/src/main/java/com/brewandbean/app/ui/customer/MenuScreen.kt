@@ -66,6 +66,10 @@ fun MenuScreen(
 
     val categories = viewModel.categories
 
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        viewModel.refreshStars()
+    }
+
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     

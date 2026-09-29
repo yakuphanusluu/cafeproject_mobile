@@ -41,6 +41,20 @@ class AuthRepository @Inject constructor(
             }
         }
     }
+    
+    fun refreshStars() {
+        val user = firebaseAuth.currentUser
+        if (user != null) {
+            coroutineScope.launch {
+                try {
+                    val starsRes = api.getStars(user.uid)
+                    _currentUser.value = user.toUserData(starsRes.stars)
+                } catch (e: Exception) {
+                    // Fail silently, keep current
+                }
+            }
+        }
+    }
 
     fun isLoggedIn(): Boolean = firebaseAuth.currentUser != null
 

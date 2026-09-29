@@ -38,6 +38,10 @@ class CustomerViewModel @Inject constructor(
 
     val currentUser = authRepository.currentUser
 
+    fun refreshStars() {
+        authRepository.refreshStars()
+    }
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 

@@ -27,6 +27,10 @@ fun ProfileScreen(
     val currentUser by authViewModel.currentUser.collectAsState()
     val isEmailPasswordProvider = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.providerData?.any { it.providerId == "password" } == true
 
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        authViewModel.refreshStars()
+    }
+
     val infoMessage by authViewModel.infoMessage.collectAsState()
     val authError by authViewModel.authError.collectAsState()
     val snackbarHostState = androidx.compose.runtime.remember { SnackbarHostState() }

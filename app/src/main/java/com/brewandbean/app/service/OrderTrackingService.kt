@@ -91,6 +91,9 @@ class OrderTrackingService : Service() {
                                 val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                                 manager.cancelAll()
                                 
+                                // Yildizlari anlik olarak yenile
+                                authRepository.refreshStars()
+                                
                                 // Servisi bitir ve arkaplan bildirimini kaldir
                                 stopForeground(true)
                                 stopSelf()
