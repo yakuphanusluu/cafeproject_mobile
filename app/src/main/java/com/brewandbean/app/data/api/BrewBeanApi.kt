@@ -15,6 +15,8 @@ data class CafeLocationResponse(
     val radius: Int = 100
 )
 
+data class StarsResponse(val stars: Int)
+
 interface BrewBeanApi {
     @POST("orders.php")
     suspend fun createOrder(@Body request: OrderRequest): Response<ApiResponse>
@@ -27,4 +29,7 @@ interface BrewBeanApi {
 
     @GET("location.php")
     suspend fun getCafeLocation(): CafeLocationResponse
+    
+    @GET("get_stars.php")
+    suspend fun getStars(@Query("token") token: String): StarsResponse
 }

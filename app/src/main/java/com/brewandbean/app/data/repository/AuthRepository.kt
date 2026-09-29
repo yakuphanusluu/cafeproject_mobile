@@ -13,15 +13,31 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AuthRepository @Inject constructor() {
+class AuthRepository @Inject constructor(
+    private val api: com.brewandbean.app.data.api.BrewBeanApi
+) {
 
     private val firebaseAuth = FirebaseAuth.getInstance()
     private val _currentUser = MutableStateFlow<UserData?>(null)
     val currentUser: StateFlow<UserData?> = _currentUser.asStateFlow()
 
+    private val coroutineScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
+
     init {
         firebaseAuth.addAuthStateListener { auth ->
-            _currentUser.value = auth.currentUser?.toUserData()
+            val user = auth.currentUser
+            if (user != null) {
+                coroutineScope.launch {
+                    try {
+                        val starsRes = api.getStars(user.uid)
+                        _currentUser.value = user.toUserData(starsRes.stars)
+                    } catch (e: Exception) {
+                        _currentUser.value = user.toUserData(0)
+                    }
+                }
+            } else {
+                _currentUser.value = null
+            }
         }
     }
 
@@ -37,7 +53,8 @@ class AuthRepository @Inject constructor() {
             val authResult = firebaseAuth.signInWithCredential(credential).await()
             val user = authResult.user
             if (user != null) {
-                val userData = user.toUserData()
+                val stars = try { api.getStars(user.uid).stars } catch(e: Exception) { 0 }
+                val userData = user.toUserData(stars)
                 _currentUser.value = userData
                 Result.success(userData)
             } else {
@@ -61,7 +78,8 @@ class AuthRepository @Inject constructor() {
                     return Result.failure(Exception(msg))
                 }
                 
-                val userData = user.toUserData()
+                val stars = try { api.getStars(user.uid).stars } catch(e: Exception) { 0 }
+                val userData = user.toUserData(stars)
                 _currentUser.value = userData
                 Result.success(userData)
             } else {
@@ -131,12 +149,12 @@ class AuthRepository @Inject constructor() {
         _currentUser.value = null
     }
 
-    private fun FirebaseUser.toUserData(): UserData {
+    private fun FirebaseUser.toUserData(fetchedStars: Int = 0): UserData {
         return UserData(
             fullName = displayName ?: "Misafir",
             username = email?.substringBefore("@") ?: "",
             email = email ?: "",
-            stars = 0
+            stars = fetchedStars
         )
     }
 }
