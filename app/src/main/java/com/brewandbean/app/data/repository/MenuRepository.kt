@@ -332,7 +332,9 @@ class MenuRepository @Inject constructor(
 
     suspend fun placeOrder(orderRequest: OrderRequest) = api.createOrder(orderRequest)
 
-    suspend fun getOrderStatus(customerToken: String) = api.getOrderStatus(customerToken)
+    suspend fun getOrderStatus(customerToken: String, orderNo: String) = api.getOrderStatus(customerToken, orderNo)
+
+    suspend fun getCafeLocation() = api.getCafeLocation()
 }
 
 

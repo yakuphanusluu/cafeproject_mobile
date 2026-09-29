@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "42980989556",
+    "project_id": "brewandbean-e1f36",
+    "storage_bucket": "brewandbean-e1f36.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:42980989556:android:77f2ed328fb8b7e1bb0f21",
+        "android_client_info": {
+          "package_name": "com.brewandbean.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "42980989556-egv2cpkf6abutn1rupl3mhuunqv3ado7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.brewandbean.app",
+            "certificate_hash": "c035b9c05ded0244542b21d839deb553a8d59db1"
+          }
+        },
+        {
+          "client_id": "42980989556-rjlklvf3hf3m85jdphodommkoiadpl4l.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCN1OMMIDx_R7U6ld0j8Jds_MRL5RtXaS4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "42980989556-rjlklvf3hf3m85jdphodommkoiadpl4l.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

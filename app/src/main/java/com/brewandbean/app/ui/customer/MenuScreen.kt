@@ -58,10 +58,6 @@ fun MenuScreen(
     val isEn by com.brewandbean.app.util.LanguageManager.isEnglish.collectAsState()
     val authViewModel: com.brewandbean.app.ui.auth.AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel()
     
-    LaunchedEffect(Unit) {
-        authViewModel.fetchProfile()
-    }
-
     val products by viewModel.products.collectAsState()
     val cartItems by viewModel.cartItems.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState(null)
@@ -175,10 +171,14 @@ fun MenuScreen(
 
                 // Filter Chips
                 item(span = { GridItemSpan(2) }) {
+                    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
                     CategoryFilter(
                         categories = categories,
                         selectedCategory = selectedCategory,
-                        onCategorySelected = { viewModel.setCategory(it) }
+                        onCategorySelected = { 
+                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                            viewModel.setCategory(it) 
+                        }
                     )
                 }
 
@@ -206,13 +206,16 @@ fun MenuScreen(
                 // Product Grid
                 items(products) { product ->
                     val sizeIndex = selectedSizes[product.id] ?: 0
+                    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
                     ProductCard(
                         product = product,
                         selectedSizeIndex = sizeIndex,
                         onSizeSelected = { index ->
+                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
                             selectedSizes[product.id] = index
                         },
                         onAddToCart = {
+                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                             viewModel.addToCart(product, sizeIndex)
                             val sizeName = product.sizes.getOrNull(sizeIndex)?.label ?: ""
                             coroutineScope.launch {

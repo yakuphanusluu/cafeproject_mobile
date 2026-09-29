@@ -50,6 +50,15 @@ class CustomerViewModel @Inject constructor(
     private val _toastMessage = MutableStateFlow<String?>(null)
     val toastMessage: StateFlow<String?> = _toastMessage.asStateFlow()
 
+    private val locationHelper = com.brewandbean.app.util.LocationHelper(application)
+
+    private val _locationError = MutableStateFlow<String?>(null)
+    val locationError: StateFlow<String?> = _locationError.asStateFlow()
+
+    fun clearLocationError() {
+        _locationError.value = null
+    }
+
     val categories: List<Pair<String, String>> = repository.getCategories()
 
     var tableNo: Int = 1
@@ -91,7 +100,12 @@ class CustomerViewModel @Inject constructor(
             _cartItems.value = currentList + CartItem(product, sizeIndex, 1)
         }
         
-        _toastMessage.value = "${product.name} (${product.sizes[sizeIndex].label}) sepete eklendi!"
+        val isEn = com.brewandbean.app.util.LanguageManager.isEnglish.value
+        _toastMessage.value = if (isEn) {
+            "${product.name} (${product.sizes[sizeIndex].label}) added to cart!"
+        } else {
+            "${product.name} (${product.sizes[sizeIndex].label}) sepete eklendi!"
+        }
     }
 
     fun removeFromCart(cartKey: String) {
@@ -123,12 +137,36 @@ class CustomerViewModel @Inject constructor(
         val user = authRepository.currentUser.value
         val token = authRepository.getToken()
         
-        val finalCustomerName = user?.fullName ?: if (guestName.isNotBlank()) guestName else "Misafir"
+        val finalCustomerName = user?.fullName ?: guestName
         val finalTableNo = if (guestTableNo > 0) guestTableNo else this.tableNo
         val finalToken = token ?: ""
         
         viewModelScope.launch {
             _isLoading.value = true
+            val isEn = com.brewandbean.app.util.LanguageManager.isEnglish.value
+            
+            // Konum kontrolü
+            try {
+                val cafeLocation = repository.getCafeLocation()
+                val userLocation = locationHelper.getCurrentLocation()
+                if (userLocation == null) {
+                    _locationError.value = if (isEn) "Location could not be retrieved. Please grant location permission." else "Konumunuz alınamadı. Lütfen konum izni verin."
+                    _isLoading.value = false
+                    return@launch
+                }
+                val distance = com.brewandbean.app.util.LocationHelper.calculateDistance(
+                    userLocation.latitude, userLocation.longitude,
+                    cafeLocation.latitude, cafeLocation.longitude
+                )
+                if (distance > cafeLocation.radius) {
+                    _locationError.value = if (isEn) "You must be near the cafe to place an order. You are currently ${distance.toInt()} meters away." else "Sipariş verebilmek için kafeye yakın olmanız gerekiyor. Şu an ${distance.toInt()} metre uzaktasınız."
+                    _isLoading.value = false
+                    return@launch
+                }
+            } catch (e: Exception) {
+                // Konum servisi çalışmıyorsa siparişe izin ver (hata toleransı)
+            }
+
             try {
                 val orderItems = _cartItems.value.map { item ->
                     OrderItemRequest(
@@ -152,14 +190,14 @@ class CustomerViewModel @Inject constructor(
                 )
                 
                 val response = repository.placeOrder(orderRequest)
-                if (response.success == true) {
+                if (response.isSuccessful && response.body()?.success == true) {
                     _cartItems.value = emptyList()
                     _orderStatus.value = "Siparisiniz alindi!"
-                    response.customerToken?.let { token ->
-                        startOrderPolling(token)
+                    response.body()?.customerToken?.let { token ->
+                        startOrderPolling(token, response.body()?.orderNo ?: "")
                     }
                 } else {
-                    _orderStatus.value = "Hata: ${response.message ?: "Bilinmeyen hata"}"
+                    _orderStatus.value = "Hata: ${response.body()?.message ?: "Bilinmeyen hata"}"
                 }
             } catch (e: Exception) {
                 _orderStatus.value = "Baglanti hatasi: ${e.message}"
@@ -169,10 +207,11 @@ class CustomerViewModel @Inject constructor(
         }
     }
 
-    private fun startOrderPolling(token: String) {
+    private fun startOrderPolling(token: String, orderNo: String) {
         val context = getApplication<Application>()
         val intent = Intent(context, OrderTrackingService::class.java).apply {
             putExtra(OrderTrackingService.EXTRA_TOKEN, token)
+            putExtra("EXTRA_ORDER_NO", orderNo)
         }
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

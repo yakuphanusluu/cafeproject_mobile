@@ -47,54 +47,55 @@ class OrderTrackingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val token = intent?.getStringExtra(EXTRA_TOKEN) ?: return START_NOT_STICKY
+        val orderNo = intent?.getStringExtra("EXTRA_ORDER_NO") ?: ""
         val isEn = com.brewandbean.app.util.LanguageManager.isEnglish.value
 
         // Arka plan servisi her zaman sessiz kanalda calismali
         startForeground(NOTIFICATION_ID_BG, buildSilentNotification(if(isEn) "Order received, awaiting confirmation..." else "Siparisiniz alindi, onay bekleniyor..."))
-        startPolling(token)
+        startPolling(token, orderNo)
 
         return START_STICKY
     }
 
-    private fun startPolling(token: String) {
+    private fun startPolling(token: String, orderNo: String) {
         serviceScope.launch {
             var isReadyNotified = false
             var lastStatus = ""
             while (isActive) {
                 delay(4000)
                 try {
-                    val statusRes = repository.getOrderStatus(token)
-                    val status = statusRes.status ?: continue
-                    val name = statusRes.customerName?.takeIf { it.isNotBlank() } ?: statusRes.orderNo ?: "Siparisiniz"
+                    val statusRes = repository.getOrderStatus(token, orderNo)
+                    if (statusRes.isSuccessful && statusRes.body() != null) {
+                        val body = statusRes.body()!!
+                        val status = body.status ?: continue
+                        val name = body.customerName?.takeIf { it.isNotBlank() } ?: body.orderNo ?: "Siparisiniz"
 
-                    if (status == lastStatus) continue // Durum degismediyse bildirim spamini engelle
-                    lastStatus = status
+                        if (status == lastStatus) continue // Durum degismediyse bildirim spamini engelle
+                        lastStatus = status
 
-                    when (status) {
-                        "hazirlaniyor" -> {
-                            updateSilentNotification(if(com.brewandbean.app.util.LanguageManager.isEnglish.value) "$name, your order is preparing..." else "$name, siparisiniz hazirlaniyor...")
-                        }
-                        "hazir" -> {
-                            if (!isReadyNotified) {
-                                // Arka plan bildirimini sessizce guncelle
-                                updateSilentNotification(if(com.brewandbean.app.util.LanguageManager.isEnglish.value) "$name, your order is ready!" else "$name, siparisiniz hazir!")
-                                // Kullaniciyi uyarmak icin YENI sesli bir bildirim firlat
-                                fireReadyAlert(if(com.brewandbean.app.util.LanguageManager.isEnglish.value) "$name, your coffee is ready! Please pick it up from the barista. ☕" else "$name, kahveniz hazir! Lutfen baristadan teslim alin. ☕")
-                                isReadyNotified = true
+                        when (status) {
+                            "hazirlaniyor" -> {
+                                updateSilentNotification(if(com.brewandbean.app.util.LanguageManager.isEnglish.value) "$name, your order is preparing..." else "$name, siparisiniz hazirlaniyor...")
                             }
-                        }
-                        "teslim_edildi" -> {
-                            // Tum sesli/sessiz bildirimleri ekrandan temizle
-                            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                            manager.cancelAll()
-                            
-                            // Profildeki yildizlari guncelle (UI otomatik yenilenecek)
-                            authRepository.fetchAndSaveProfile()
-                            
-                            // Servisi bitir ve arkaplan bildirimini kaldir
-                            stopForeground(true)
-                            stopSelf()
-                            break
+                            "hazir" -> {
+                                if (!isReadyNotified) {
+                                    // Arka plan bildirimini sessizce guncelle
+                                    updateSilentNotification(if(com.brewandbean.app.util.LanguageManager.isEnglish.value) "$name, your order is ready!" else "$name, siparisiniz hazir!")
+                                    // Kullaniciyi uyarmak icin YENI sesli bir bildirim firlat
+                                    fireReadyAlert(if(com.brewandbean.app.util.LanguageManager.isEnglish.value) "$name, your coffee is ready! Please pick it up from the barista. ☕" else "$name, kahveniz hazir! Lutfen baristadan teslim alin. ☕")
+                                    isReadyNotified = true
+                                }
+                            }
+                            "teslim_edildi" -> {
+                                // Tum sesli/sessiz bildirimleri ekrandan temizle
+                                val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                                manager.cancelAll()
+                                
+                                // Servisi bitir ve arkaplan bildirimini kaldir
+                                stopForeground(true)
+                                stopSelf()
+                                break
+                            }
                         }
                     }
                 } catch (e: Exception) {

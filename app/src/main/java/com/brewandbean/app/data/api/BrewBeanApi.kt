@@ -1,39 +1,30 @@
 package com.brewandbean.app.data.api
 
-import com.brewandbean.app.data.model.*
+import com.brewandbean.app.data.model.ApiResponse
+import com.brewandbean.app.data.model.OrderRequest
+import com.brewandbean.app.data.model.OrderStatusResponse
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
 
+data class CafeLocationResponse(
+    val latitude: Double,
+    val longitude: Double,
+    val radius: Int = 100
+)
+
 interface BrewBeanApi {
     @POST("orders.php")
-    suspend fun createOrder(@Body orderRequest: OrderRequest): ApiResponse
+    suspend fun createOrder(@Body request: OrderRequest): Response<ApiResponse>
 
     @GET("orders.php")
-    suspend fun getOrderStatus(@Query("customer_token") customerToken: String): OrderStatusResponse
+    suspend fun getOrderStatus(
+        @Query("customer_token") token: String,
+        @Query("order_no") orderNo: String
+    ): Response<OrderStatusResponse>
 
-    @POST("auth.php?action=register")
-    suspend fun register(@Body request: RegisterRequest): AuthResponse
-
-    @POST("auth.php?action=verify_email")
-    suspend fun verifyEmail(@Body request: VerifyRequest): AuthResponse
-
-    @POST("auth.php?action=login")
-    suspend fun login(@Body request: LoginRequest): AuthResponse
-
-    @POST("auth.php?action=forgot_password")
-    suspend fun forgotPassword(@Body request: ForgotPasswordRequest): AuthResponse
-
-    @POST("auth.php?action=reset_password")
-    suspend fun resetPassword(@Body request: ResetPasswordRequest): AuthResponse
-
-    @POST("auth.php?action=update_profile")
-    suspend fun updateProfile(@Body request: UpdateProfileRequest): AuthResponse
-
-    @POST("auth.php?action=update_password")
-    suspend fun updatePassword(@Body request: UpdatePasswordRequest): AuthResponse
-
-    @POST("auth.php?action=get_profile")
-    suspend fun getProfile(@Body request: GetProfileRequest): AuthResponse
+    @GET("location.php")
+    suspend fun getCafeLocation(): CafeLocationResponse
 }

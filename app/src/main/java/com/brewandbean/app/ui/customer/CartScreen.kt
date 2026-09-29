@@ -54,6 +54,37 @@ fun CartScreen(
     var showCheckoutDialog by remember { mutableStateOf(false) }
     val currentUser by viewModel.currentUser.collectAsState(null)
     val isEn by com.brewandbean.app.util.LanguageManager.isEnglish.collectAsState()
+    
+    val locationError by viewModel.locationError.collectAsState(null)
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val locationPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions -> }
+
+    LaunchedEffect(Unit) {
+        if (!com.brewandbean.app.util.LocationHelper(context).hasLocationPermission(context)) {
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    android.Manifest.permission.ACCESS_FINE_LOCATION,
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
+
+    if (locationError != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.clearLocationError() },
+            title = { Text(if(isEn) "Location Warning" else "Konum Uyarısı") },
+            text = { Text(locationError ?: "") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.clearLocationError() }) {
+                    Text("Tamam")
+                }
+            }
+        )
+    }
+
     val canUseStars = remember(currentUser, cartItems, isEn) {
         val userStars = currentUser?.stars ?: 0
         if (userStars >= 10 && cartItems.size == 1) {
@@ -193,8 +224,12 @@ fun CartScreen(
                                 color = colorPrimary
                             )
                         }
+                        val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
                         Button(
-                            onClick = { showCheckoutDialog = true },
+                            onClick = { 
+                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                showCheckoutDialog = true 
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(56.dp),
@@ -343,12 +378,16 @@ fun CartItemCard(
                         .background(colorAccentLight, RoundedCornerShape(16.dp))
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
+                    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
                     Box(
                         modifier = Modifier
                             .size(28.dp)
                             .clip(CircleShape)
                             .background(colorSurface)
-                            .clickable { onUpdateQuantity(-1) },
+                            .clickable { 
+                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                onUpdateQuantity(-1) 
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Text("-", color = colorPrimary, fontWeight = FontWeight.Bold)
@@ -364,7 +403,10 @@ fun CartItemCard(
                             .size(28.dp)
                             .clip(CircleShape)
                             .background(colorAccent)
-                            .clickable { onUpdateQuantity(1) },
+                            .clickable { 
+                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                onUpdateQuantity(1) 
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Text("+", color = colorSurface, fontWeight = FontWeight.Bold)
@@ -409,6 +451,7 @@ fun CheckoutDialog(
 ) {
     val isEn by com.brewandbean.app.util.LanguageManager.isEnglish.collectAsState()
     var guestName by remember { mutableStateOf("") }
+    var showNameError by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf("") }
     var paymentMethod by remember { mutableStateOf("kart") }
     var useStars by remember { mutableStateOf(false) }
@@ -424,7 +467,7 @@ fun CheckoutDialog(
                     .fillMaxWidth()
             ) {
                 Text(
-                    text = if(isEn) "Payment Preference" else "\u00D6deme Tercihi",
+                    text = if(isEn) "Payment Preference" else "Ödeme Tercihi",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Serif,
@@ -433,11 +476,25 @@ fun CheckoutDialog(
                 if (isGuest) {
                     OutlinedTextField(
                         value = guestName,
-                        onValueChange = { guestName = it },
-                        label = { Text(if(isEn) "Full Name" else "Ad\u0131n\u0131z Soyad\u0131n\u0131z") },
+                        onValueChange = { 
+                            guestName = it
+                            showNameError = false 
+                        },
+                        label = { Text(if(isEn) "Full Name" else "Adınız Soyadınız") },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                        isError = showNameError && guestName.isBlank(),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
                     )
+                    if (showNameError && guestName.isBlank()) {
+                        Text(
+                            text = if(isEn) "Please enter your name" else "Lütfen adınızı girin",
+                            color = Color.Red,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                 }
                 if (canUseStars) {
                     Card(
@@ -451,8 +508,8 @@ fun CheckoutDialog(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column {
-                                Text("\u2B50 10 Y\u0131ld\u0131z Kullan", fontWeight = FontWeight.Bold, color = Color(0xFFF57F17))
-                                Text(if(isEn) "1 Small Coffee Free!" else "1 K\u00FC\u00E7\u00FCk Kahve Bedava!", fontSize = 12.sp, color = Color(0xFFF57F17))
+                                Text("⭐ 10 Yıldız Kullan", fontWeight = FontWeight.Bold, color = Color(0xFFF57F17))
+                                Text(if(isEn) "1 Small Coffee Free!" else "1 Küçük Kahve Bedava!", fontSize = 12.sp, color = Color(0xFFF57F17))
                             }
                             Switch(
                                 checked = useStars,
@@ -463,19 +520,19 @@ fun CheckoutDialog(
                     }
                 }
                 if (!useStars) {
-                    Text(if(isEn) "Payment Method" else "\u00D6deme Y\u00F6ntemi", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
+                    Text(if(isEn) "Payment Method" else "Ödeme Yöntemi", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
                     Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         PaymentOptionCard(
                             modifier = Modifier.weight(1f),
                             title = if(isEn) "Card" else "Kart",
-                            icon = "\uD83D\uDCB3",
+                            icon = "💳",
                             isSelected = paymentMethod == "kart",
                             onClick = { paymentMethod = "kart" }
                         )
                         PaymentOptionCard(
                             modifier = Modifier.weight(1f),
                             title = if(isEn) "Cash" else "Nakit",
-                            icon = "\uD83D\uDCB5",
+                            icon = "💵",
                             isSelected = paymentMethod == "nakit",
                             onClick = { paymentMethod = "nakit" }
                         )
@@ -484,7 +541,7 @@ fun CheckoutDialog(
                 OutlinedTextField(
                     value = note,
                     onValueChange = { note = it },
-                    label = { Text(if(isEn) "Order Note (Optional)" else "Sipari\u015F Notu (\u0130ste\u011Fe Ba\u011Fl\u0131)") },
+                    label = { Text(if(isEn) "Order Note (Optional)" else "Sipariş Notu (İsteğe Bağlı)") },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
                     minLines = 2
                 )
@@ -494,13 +551,17 @@ fun CheckoutDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if(useStars) (if(isEn) "Total: \u20BA0" else "Toplam: \u20BA0") else (if(isEn) "Total: \u20BA${totalPrice}" else "Toplam: \u20BA${totalPrice}"),
+                        text = if(useStars) (if(isEn) "Total: ₺0" else "Toplam: ₺0") else (if(isEn) "Total: ₺${totalPrice}" else "Toplam: ₺${totalPrice}"),
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
                     )
                     Button(
                         onClick = {
-                            onConfirm(guestName.trim(), note.trim(), if(useStars) "yildiz" else paymentMethod, useStars)
+                            if (isGuest && guestName.isBlank()) {
+                                showNameError = true
+                            } else {
+                                onConfirm(guestName.trim(), note.trim(), if(useStars) "yildiz" else paymentMethod, useStars)
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF388E3C)),
                         shape = RoundedCornerShape(12.dp)

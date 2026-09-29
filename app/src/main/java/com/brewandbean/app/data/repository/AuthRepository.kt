@@ -1,102 +1,142 @@
 package com.brewandbean.app.data.repository
 
-import android.content.Context
-import android.content.SharedPreferences
-import com.brewandbean.app.data.api.BrewBeanApi
-import com.brewandbean.app.data.model.*
-import dagger.hilt.android.qualifiers.ApplicationContext
+import com.brewandbean.app.data.model.UserData
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.userProfileChangeRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AuthRepository @Inject constructor(
-    private val api: BrewBeanApi,
-    @ApplicationContext context: Context
-) {
-    private val prefs: SharedPreferences = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
+class AuthRepository @Inject constructor() {
 
-    private val _currentUser = MutableStateFlow<UserData?>(loadUserFromPrefs())
+    private val firebaseAuth = FirebaseAuth.getInstance()
+    private val _currentUser = MutableStateFlow<UserData?>(null)
     val currentUser: StateFlow<UserData?> = _currentUser.asStateFlow()
 
-    fun isLoggedIn(): Boolean {
-        return prefs.getString("token", null) != null
-    }
-
-    fun getToken(): String? {
-        return prefs.getString("token", null)
-    }
-
-    private fun loadUserFromPrefs(): UserData? {
-        val fullName = prefs.getString("full_name", null)
-        val username = prefs.getString("username", null)
-        val email = prefs.getString("email", null)
-        val stars = prefs.getInt("stars", 0)
-        if (fullName != null && username != null && email != null) {
-            return UserData(fullName, username, email, stars)
+    init {
+        firebaseAuth.addAuthStateListener { auth ->
+            _currentUser.value = auth.currentUser?.toUserData()
         }
-        return null
     }
 
-    fun saveSession(token: String, user: UserData) {
-        prefs.edit()
-            .putString("token", token)
-            .putString("full_name", user.fullName)
-            .putString("username", user.username)
-            .putString("email", user.email)
-            .putInt("stars", user.stars)
-            .apply()
-        _currentUser.value = user
+    fun isLoggedIn(): Boolean = firebaseAuth.currentUser != null
+
+    fun getToken(): String? = firebaseAuth.currentUser?.uid
+
+    fun getCurrentFirebaseUser() = firebaseAuth.currentUser
+
+    suspend fun signInWithGoogle(idToken: String): Result<UserData> {
+        return try {
+            val credential = GoogleAuthProvider.getCredential(idToken, null)
+            val authResult = firebaseAuth.signInWithCredential(credential).await()
+            val user = authResult.user
+            if (user != null) {
+                val userData = user.toUserData()
+                _currentUser.value = userData
+                Result.success(userData)
+            } else {
+                Result.failure(Exception("Kullanıcı bilgisi alınamadı"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun loginWithEmail(email: String, pass: String): Result<UserData> {
+        return try {
+            val authResult = firebaseAuth.signInWithEmailAndPassword(email, pass).await()
+            val user = authResult.user
+            if (user != null) {
+                if (!user.isEmailVerified) {
+                    firebaseAuth.signOut()
+                    _currentUser.value = null
+                    val isEn = com.brewandbean.app.util.LanguageManager.isEnglish.value
+                    val msg = if (isEn) "Please verify your email address. (Check your spam folder)" else "Lütfen e-posta adresinizi doğrulayın. (Spam/Gereksiz klasörünü kontrol edin)"
+                    return Result.failure(Exception(msg))
+                }
+                
+                val userData = user.toUserData()
+                _currentUser.value = userData
+                Result.success(userData)
+            } else {
+                Result.failure(Exception("Kullanıcı bilgisi alınamadı"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updatePassword(newPass: String): Result<Unit> {
+        return try {
+            val user = firebaseAuth.currentUser
+            if (user != null) {
+                user.updatePassword(newPass).await()
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Kullanıcı oturumu bulunamadı."))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun registerWithEmail(email: String, pass: String, fullName: String): Result<Unit> {
+        return try {
+            val authResult = firebaseAuth.createUserWithEmailAndPassword(email, pass).await()
+            val user = authResult.user
+            if (user != null) {
+                // Update profile with full name
+                val profileUpdates = userProfileChangeRequest {
+                    displayName = fullName
+                }
+                user.updateProfile(profileUpdates).await()
+                
+                // Doğrulama e-postası gönder
+                try {
+                    user.sendEmailVerification().await()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+                
+                // Güvenlik: E-posta doğrulanana kadar oturumu kapat
+                firebaseAuth.signOut()
+                _currentUser.value = null
+                
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Kayıt işlemi başarısız"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun resetPassword(email: String): Result<Unit> {
+        return try {
+            firebaseAuth.sendPasswordResetEmail(email).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     fun logout() {
-        prefs.edit().clear().apply()
+        firebaseAuth.signOut()
         _currentUser.value = null
     }
 
-    suspend fun register(request: RegisterRequest): AuthResponse {
-        return api.register(request)
-    }
-
-    suspend fun verifyEmail(request: VerifyRequest): AuthResponse {
-        return api.verifyEmail(request)
-    }
-
-    suspend fun login(request: LoginRequest): AuthResponse {
-        return api.login(request)
-    }
-
-    suspend fun forgotPassword(request: ForgotPasswordRequest): AuthResponse {
-        return api.forgotPassword(request)
-    }
-
-    suspend fun resetPassword(request: ResetPasswordRequest): AuthResponse {
-        return api.resetPassword(request)
-    }
-
-    suspend fun updateProfile(request: UpdateProfileRequest): AuthResponse {
-        return api.updateProfile(request)
-    }
-
-    suspend fun updatePassword(request: UpdatePasswordRequest): AuthResponse {
-        return api.updatePassword(request)
-    }
-
-    suspend fun getProfile(request: GetProfileRequest): AuthResponse {
-        return api.getProfile(request)
-    }
-
-    suspend fun fetchAndSaveProfile() {
-        val token = getToken() ?: return
-        try {
-            val response = getProfile(GetProfileRequest(token))
-            if (response.success == true && response.user != null) {
-                saveSession(token, response.user)
-            }
-        } catch (e: Exception) {
-            // Ignore
-        }
+    private fun FirebaseUser.toUserData(): UserData {
+        return UserData(
+            fullName = displayName ?: "Misafir",
+            username = email?.substringBefore("@") ?: "",
+            email = email ?: "",
+            stars = 0
+        )
     }
 }

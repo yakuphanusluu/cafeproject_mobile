@@ -13,6 +13,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -28,18 +30,13 @@ import com.brewandbean.app.ui.theme.BrewAndBeanTheme
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        // Permission handled
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         com.brewandbean.app.util.LanguageManager.init(applicationContext)
+        com.brewandbean.app.util.NetworkMonitor.init(applicationContext)
         
         createNotificationChannel()
-        askNotificationPermission()
+        askPermissions()
 
         setContent {
             BrewAndBeanTheme {
@@ -47,82 +44,74 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val navController = rememberNavController()
-                    val customerViewModel = hiltViewModel<CustomerViewModel>()
-                    val authViewModel = hiltViewModel<com.brewandbean.app.ui.auth.AuthViewModel>()
-                    
-                    val startDest = "menu"
+                    val isConnected by com.brewandbean.app.util.NetworkMonitor.isConnected.collectAsState()
+                    if (!isConnected) {
+                        com.brewandbean.app.ui.customer.NoInternetScreen()
+                    } else {
+                        val navController = rememberNavController()
+                        val customerViewModel = hiltViewModel<CustomerViewModel>()
+                        val authViewModel = hiltViewModel<com.brewandbean.app.ui.auth.AuthViewModel>()
+                        
+                        val startDest = "menu"
 
-                    NavHost(navController = navController, startDestination = startDest) {
-                        composable("login") {
-                            com.brewandbean.app.ui.auth.LoginScreen(
-                                viewModel = authViewModel,
-                                onNavigateToRegister = { navController.navigate("register") },
-                                onNavigateToVerify = { email -> navController.navigate("verify/$email") },
-                                onNavigateToForgot = { navController.navigate("forgot_password") },
-                                onLoginSuccess = {
-                                    navController.navigate("menu") {
-                                        popUpTo("login") { inclusive = true }
+                        NavHost(navController = navController, startDestination = startDest) {
+                            composable("login") {
+                                com.brewandbean.app.ui.auth.LoginScreen(
+                                    viewModel = authViewModel,
+                                    onNavigateToRegister = { navController.navigate("register") },
+                                    onNavigateToForgot = { navController.navigate("forgot_password") },
+                                    onLoginSuccess = {
+                                        navController.navigate("menu") {
+                                            popUpTo("login") { inclusive = true }
+                                        }
                                     }
-                                }
-                            )
-                        }
-                        composable("register") {
-                            com.brewandbean.app.ui.auth.RegisterScreen(
-                                viewModel = authViewModel,
-                                onBack = { navController.popBackStack() },
-                                onNavigateToVerify = { email ->
-                                    navController.navigate("verify/$email") {
-                                        popUpTo("register") { inclusive = true }
+                                )
+                            }
+                            composable("register") {
+                                com.brewandbean.app.ui.auth.RegisterScreen(
+                                    viewModel = authViewModel,
+                                    onBack = { navController.popBackStack() },
+                                    onRegisterSuccess = {
+                                        navController.popBackStack()
                                     }
-                                }
-                            )
-                        }
-                        composable("verify/{email}") { backStackEntry ->
-                            val email = backStackEntry.arguments?.getString("email") ?: ""
-                            com.brewandbean.app.ui.auth.VerifyScreen(
-                                email = email,
-                                viewModel = authViewModel,
-                                onBack = { navController.navigate("login") { popUpTo(0) } },
-                                onVerifySuccess = {
-                                    navController.navigate("login") {
-                                        popUpTo(0)
+                                )
+                            }
+                            composable("forgot_password") {
+                                com.brewandbean.app.ui.auth.ForgotPasswordScreen(
+                                    viewModel = authViewModel,
+                                    onBack = { navController.popBackStack() }
+                                )
+                            }
+                            composable("menu") {
+                                MenuScreen(
+                                    viewModel = customerViewModel,
+                                    onCartClick = { navController.navigate("cart") },
+                                    onProfileClick = {
+                                        if (authViewModel.currentUser.value != null) {
+                                            navController.navigate("profile")
+                                        } else {
+                                            navController.navigate("login")
+                                        }
                                     }
-                                }
-                            )
-                        }
-                        composable("forgot_password") {
-                            com.brewandbean.app.ui.auth.ForgotPasswordScreen(
-                                viewModel = authViewModel,
-                                onBack = { navController.popBackStack() },
-                                onSuccess = {
-                                    navController.navigate("login") { popUpTo(0) }
-                                }
-                            )
-                        }
-                        composable("menu") {
-                            MenuScreen(
-                                viewModel = customerViewModel,
-                                onCartClick = { navController.navigate("cart") },
-                                onProfileClick = {
-                                    if (authViewModel.currentUser.value != null) navController.navigate("profile") else navController.navigate("login")
-                                }
-                            )
-                        }
-                        composable("profile") {
-                            com.brewandbean.app.ui.customer.ProfileScreen(
-                                viewModel = authViewModel,
-                                onBack = { navController.popBackStack() },
-                                onLogout = {
-                                    navController.navigate("login") { popUpTo(0) }
-                                }
-                            )
-                        }
-                        composable("cart") {
-                            CartScreen(
-                                viewModel = customerViewModel,
-                                onBack = { navController.popBackStack() }
-                            )
+                                )
+                            }
+                            composable("profile") {
+                                com.brewandbean.app.ui.customer.ProfileScreen(
+                                    authViewModel = authViewModel,
+                                    onBack = { navController.popBackStack() },
+                                    onLogoutSuccess = {
+                                        navController.navigate("login") {
+                                            popUpTo(0) { inclusive = true }
+                                        }
+                                    }
+                                )
+                            }
+                            composable("cart") {
+                                CartScreen(
+                                    viewModel = customerViewModel,
+                                    onBack = { navController.popBackStack() }
+                                )
+                            }
                         }
                     }
                 }
@@ -144,13 +133,28 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun askNotificationPermission() {
+    private val requestMultiplePermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        // İzinler istendi
+    }
+
+    private fun askPermissions() {
+        val permissionsToRequest = mutableListOf<String>()
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
-                PackageManager.PERMISSION_GRANTED
-            ) {
-                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
             }
+        }
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+            permissionsToRequest.add(Manifest.permission.ACCESS_COARSE_LOCATION)
+        }
+
+        if (permissionsToRequest.isNotEmpty()) {
+            requestMultiplePermissionsLauncher.launch(permissionsToRequest.toTypedArray())
         }
     }
 }
