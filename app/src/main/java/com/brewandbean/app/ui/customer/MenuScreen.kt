@@ -187,7 +187,7 @@ fun MenuScreen(
                         categories = categories,
                         selectedCategory = selectedCategory,
                         onCategorySelected = { 
-                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                            com.brewandbean.app.util.VibrationHelper.vibrate(androidx.compose.ui.platform.LocalContext.current, 30)
                             viewModel.setCategory(it) 
                         }
                     )
@@ -222,11 +222,11 @@ fun MenuScreen(
                         product = product,
                         selectedSizeIndex = sizeIndex,
                         onSizeSelected = { index ->
-                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                            com.brewandbean.app.util.VibrationHelper.vibrate(androidx.compose.ui.platform.LocalContext.current, 30)
                             selectedSizes[product.id] = index
                         },
                         onAddToCart = {
-                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                            com.brewandbean.app.util.VibrationHelper.vibrate(androidx.compose.ui.platform.LocalContext.current, 60)
                             viewModel.addToCart(product, sizeIndex)
                             val sizeName = product.sizes.getOrNull(sizeIndex)?.label ?: ""
                             coroutineScope.launch {
