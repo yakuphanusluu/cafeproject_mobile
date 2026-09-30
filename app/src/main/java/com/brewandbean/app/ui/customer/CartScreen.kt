@@ -324,6 +324,7 @@ fun CartItemCard(
     onRemove: () -> Unit
 ) {
     val isEn by com.brewandbean.app.util.LanguageManager.isEnglish.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = colorSurface),
