@@ -227,7 +227,7 @@ fun CartScreen(
                         val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
                         Button(
                             onClick = { 
-                                com.brewandbean.app.util.VibrationHelper.vibrate(androidx.compose.ui.platform.LocalContext.current, 60)
+                                com.brewandbean.app.util.VibrationHelper.vibrate(context, 60)
                                 showCheckoutDialog = true 
                             },
                             modifier = Modifier
@@ -385,7 +385,7 @@ fun CartItemCard(
                             .clip(CircleShape)
                             .background(colorSurface)
                             .clickable { 
-                                com.brewandbean.app.util.VibrationHelper.vibrate(androidx.compose.ui.platform.LocalContext.current, 30)
+                                com.brewandbean.app.util.VibrationHelper.vibrate(context, 30)
                                 onUpdateQuantity(-1) 
                             },
                         contentAlignment = Alignment.Center
@@ -404,7 +404,7 @@ fun CartItemCard(
                             .clip(CircleShape)
                             .background(colorAccent)
                             .clickable { 
-                                com.brewandbean.app.util.VibrationHelper.vibrate(androidx.compose.ui.platform.LocalContext.current, 30)
+                                com.brewandbean.app.util.VibrationHelper.vibrate(context, 30)
                                 onUpdateQuantity(1) 
                             },
                         contentAlignment = Alignment.Center

@@ -72,6 +72,7 @@ fun MenuScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
     
     val selectedSizes = remember { mutableStateMapOf<Int, Int>() }
 
@@ -187,7 +188,7 @@ fun MenuScreen(
                         categories = categories,
                         selectedCategory = selectedCategory,
                         onCategorySelected = { 
-                            com.brewandbean.app.util.VibrationHelper.vibrate(androidx.compose.ui.platform.LocalContext.current, 30)
+                            com.brewandbean.app.util.VibrationHelper.vibrate(context, 30)
                             viewModel.setCategory(it) 
                         }
                     )
@@ -222,11 +223,11 @@ fun MenuScreen(
                         product = product,
                         selectedSizeIndex = sizeIndex,
                         onSizeSelected = { index ->
-                            com.brewandbean.app.util.VibrationHelper.vibrate(androidx.compose.ui.platform.LocalContext.current, 30)
+                            com.brewandbean.app.util.VibrationHelper.vibrate(context, 30)
                             selectedSizes[product.id] = index
                         },
                         onAddToCart = {
-                            com.brewandbean.app.util.VibrationHelper.vibrate(androidx.compose.ui.platform.LocalContext.current, 60)
+                            com.brewandbean.app.util.VibrationHelper.vibrate(context, 60)
                             viewModel.addToCart(product, sizeIndex)
                             val sizeName = product.sizes.getOrNull(sizeIndex)?.label ?: ""
                             coroutineScope.launch {
