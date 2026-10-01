@@ -53,6 +53,7 @@ val BorderColor = Color(0xFFE8E0D8)
 fun MenuScreen(
     viewModel: CustomerViewModel,
     onCartClick: () -> Unit,
+    onGameClick: () -> Unit,
     onProfileClick: () -> Unit
 ) {
     val isEn by com.brewandbean.app.util.LanguageManager.isEnglish.collectAsState()
@@ -70,14 +71,14 @@ fun MenuScreen(
         viewModel.refreshStars()
     }
 
-    val snackbarHostState = remember { SnackbarHostState() }
+    val showNotification = remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
     
     val selectedSizes = remember { mutableStateMapOf<Int, Int>() }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = BackgroundColor,
         topBar = {
             TopAppBar(
@@ -128,6 +129,10 @@ fun MenuScreen(
                         }
                     }
                     Spacer(modifier = Modifier.width(8.dp))
+                    IconButton(onClick = onGameClick) {
+                        Text("🎮", fontSize = 20.sp)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
                     BadgedBox(
                         badge = {
                             if (cartItems.isNotEmpty()) {
@@ -162,7 +167,7 @@ fun MenuScreen(
             }
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
+                columns = GridCells.Adaptive(minSize = 300.dp),
                 contentPadding = PaddingValues(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -171,18 +176,20 @@ fun MenuScreen(
                     .padding(paddingValues)
             ) {
                 // Hero Section
-                item(span = { GridItemSpan(2) }) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     HeroSection()
                 }
 
-                if (currentUser == null) {
-                    item(span = { GridItemSpan(2) }) {
-                        GuestAdCard(onLoginClick = onProfileClick)
-                    }
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    PromoAdCard(isLoggedIn = currentUser != null, onClick = onProfileClick)
+                }
+                
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    GameAdCard(isLoggedIn = currentUser != null, onGameClick = onGameClick)
                 }
 
                 // Filter Chips
-                item(span = { GridItemSpan(2) }) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
                     CategoryFilter(
                         categories = categories,
@@ -195,7 +202,7 @@ fun MenuScreen(
                 }
 
                 // Section Header
-                item(span = { GridItemSpan(2) }) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     Column(modifier = Modifier.padding(vertical = 16.dp)) {
                         Text(
                             text = if(isEn) "OUR MENU" else "MEN\u00DCM\u00DCZ",
@@ -231,12 +238,38 @@ fun MenuScreen(
                             viewModel.addToCart(product, sizeIndex)
                             val sizeName = product.sizes.getOrNull(sizeIndex)?.label ?: ""
                             coroutineScope.launch {
-                                snackbarHostState.showSnackbar(
-                                    message = if(isEn) "\u2705 ${product.nameEn} ($sizeName) added to cart!" else "\u2705 ${product.name} ($sizeName) sepete eklendi!"
-                                )
+                                showNotification.value = if(isEn) "✨ ${product.nameEn} ($sizeName) added to cart!" else "✨ ${product.name} ($sizeName) sepete eklendi!"
+                                kotlinx.coroutines.delay(2500)
+                                showNotification.value = null
                             }
                         }
                     )
+                }
+            }
+        }
+    }
+    
+        androidx.compose.animation.AnimatedVisibility(
+            visible = showNotification.value != null,
+            enter = androidx.compose.animation.slideInVertically(initialOffsetY = { -it }) + androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.slideOutVertically(targetOffsetY = { -it }) + androidx.compose.animation.fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 16.dp, start = 16.dp, end = 16.dp)
+        ) {
+            showNotification.value?.let { msg ->
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF2D8A4E)),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 100.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("✨", fontSize = 24.sp)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(msg.replace("✨ ", ""), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    }
                 }
             }
         }
@@ -262,7 +295,7 @@ fun HeroSection() {
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = "\u2014 EST. 2024 \u2014",
+                text = "\u2014 EST. 2026 \u2014",
                 color = AccentColor,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -405,9 +438,26 @@ fun ProductCard(
                     text = if(isEn) product.descEn else product.desc,
                     color = TextMutedColor,
                     fontSize = 12.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    lineHeight = 16.sp
                 )
+                
+                val details = getProductDetails(product.id, isEn)
+                if (details.first.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = if(isEn) "Ingredients: ${details.first}" else "İçindekiler: ${details.first}",
+                        color = Color(0xFF666666),
+                        fontSize = 10.sp,
+                        lineHeight = 12.sp
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = if(isEn) "Calories: ${details.second}" else "Kalori: ${details.second}",
+                        color = AccentColor,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -483,13 +533,13 @@ fun ProductCard(
 }
 
 @Composable
-fun GuestAdCard(onLoginClick: () -> Unit) {
+fun PromoAdCard(isLoggedIn: Boolean, onClick: () -> Unit) {
     val isEn by com.brewandbean.app.util.LanguageManager.isEnglish.collectAsState()
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
-            .clickable(onClick = onLoginClick),
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
     ) {
@@ -503,19 +553,27 @@ fun GuestAdCard(onLoginClick: () -> Unit) {
                     .background(Color(0xFFFFB74D), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text("\u2B50", fontSize = 24.sp)
+                Text("⭐", fontSize = 24.sp)
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column {
                 Text(
-                    text = if(isEn) "Win Free Coffee!" else "Bedava Kahve Kazan!",
+                    text = if(isLoggedIn) {
+                        if(isEn) "Don't forget your stars!" else "Yıldızlarını Unutma!"
+                    } else {
+                        if(isEn) "Win Free Coffee!" else "Bedava Kahve Kazan!"
+                    },
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFE65100),
                     fontSize = 16.sp
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = if(isEn) "Log in, win 1 free small coffee for every 10 orders. Join now!" else "Giri\u015F yap, her 10 sipari\u015Fte 1 k\u00FC\u00E7\u00FCk boy kahve bedava kazan. Hemen kat\u0131l!",
+                    text = if(isLoggedIn) {
+                        if(isEn) "Earn 1 star for every coffee, get a free coffee when you reach 10 stars!" else "Her kahvede 1 yıldız kazan, 10 yıldıza ulaşınca bedava kahveni kap!"
+                    } else {
+                        if(isEn) "Log in, win 1 free small coffee for every 10 orders. Join now!" else "Giriş yap, her 10 siparişte 1 küçük boy kahve bedava kazan. Hemen katıl!"
+                    },
                     color = Color(0xFFF57C00),
                     fontSize = 12.sp,
                     lineHeight = 16.sp
@@ -524,3 +582,82 @@ fun GuestAdCard(onLoginClick: () -> Unit) {
         }
     }
 }
+
+@Composable
+fun GameAdCard(isLoggedIn: Boolean, onGameClick: () -> Unit) {
+    val isEn by com.brewandbean.app.util.LanguageManager.isEnglish.collectAsState()
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clickable(onClick = onGameClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8EAF6))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(Color(0xFF7986CB), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("🎮", fontSize = 24.sp)
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(
+                    text = if(isLoggedIn) {
+                        if(isEn) "Earn Stars by Playing!" else "Oyun Oynayarak Yıldız Kazan!"
+                    } else {
+                        if(isEn) "Want to Play?" else "Oyun Oynamak İster misin?"
+                    },
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF283593),
+                    fontSize = 16.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if(isLoggedIn) {
+                        if(isEn) "Play our memory game, convert star dust into free coffee." else "Hafıza oyunumuzu oyna, kazandığın yıldız tozlarını bedava kahveye dönüştür."
+                    } else {
+                        if(isEn) "Log in to play our daily memory game and win free coffee!" else "Giriş yap, her gün hafıza oyununu oynayarak bedava kahve kazanma şansı yakala!"
+                    },
+                    color = Color(0xFF3949AB),
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
+                )
+            }
+        }
+    }
+}
+
+fun getProductDetails(id: Int, isEn: Boolean): Pair<String, String> {
+    return when(id) {
+        1 -> if (isEn) Pair("Finely ground coffee beans, water", "15 kcal") else Pair("İnce çekilmiş kahve çekirdeği, su", "15 kcal")
+        2 -> if (isEn) Pair("100% Arabica espresso", "5 kcal") else Pair("%100 Arabica espresso", "5 kcal")
+        3 -> if (isEn) Pair("Espresso, steamed milk, thick milk foam", "120 kcal") else Pair("Espresso, sıcak süt, yoğun süt köpüğü", "120 kcal")
+        4 -> if (isEn) Pair("Espresso, steamed milk, light foam", "130 kcal") else Pair("Espresso, sıcak süt, hafif süt köpüğü", "130 kcal")
+        5 -> if (isEn) Pair("Espresso, hot water", "10 kcal") else Pair("Espresso, sıcak su", "10 kcal")
+        6 -> if (isEn) Pair("Double ristretto, microfoamed milk", "110 kcal") else Pair("Duble ristretto, mikro köpüklü süt", "110 kcal")
+        7 -> if (isEn) Pair("Espresso, cold milk, ice", "130 kcal") else Pair("Espresso, soğuk süt, buz", "130 kcal")
+        8 -> if (isEn) Pair("Coarsely ground coffee, cold water (18h steep)", "5 kcal") else Pair("Kalın çekilmiş kahve, soğuk su (18 saat demlenmiş)", "5 kcal")
+        9 -> if (isEn) Pair("Coffee, milk, ice, whipped cream, chocolate syrup", "320 kcal") else Pair("Kahve, süt, buz, kremşanti, çikolata sosu", "320 kcal")
+        10 -> if (isEn) Pair("Espresso, cold water, ice", "10 kcal") else Pair("Espresso, soğuk su, buz", "10 kcal")
+        11 -> if (isEn) Pair("Espresso, vanilla syrup, milk, caramel drizzle", "240 kcal") else Pair("Espresso, vanilya şurubu, süt, karamel sos", "240 kcal")
+        12 -> if (isEn) Pair("Espresso, chocolate syrup, milk, whipped cream", "290 kcal") else Pair("Espresso, çikolata sosu, süt, kremşanti", "290 kcal")
+        13 -> if (isEn) Pair("Espresso, lavender syrup, milk", "180 kcal") else Pair("Espresso, lavanta şurubu, süt", "180 kcal")
+        14 -> if (isEn) Pair("Matcha green tea powder, milk, light sweetener", "150 kcal") else Pair("Matcha yeşil çay tozu, süt, hafif tatlandırıcı", "150 kcal")
+        15 -> if (isEn) Pair("Hot espresso, vanilla ice cream", "210 kcal") else Pair("Sıcak espresso, vanilyalı dondurma", "210 kcal")
+        16 -> if (isEn) Pair("Espresso, mascarpone, ladyfingers, cocoa", "350 kcal") else Pair("Espresso, mascarpone, kedi dili, kakao", "350 kcal")
+        17 -> if (isEn) Pair("Cream cheese, graham cracker crust, vanilla", "400 kcal") else Pair("Krem peynir, bisküvi taban, vanilya", "400 kcal")
+        18 -> if (isEn) Pair("Dark chocolate, butter, sugar, walnuts", "450 kcal") else Pair("Bitter çikolata, tereyağı, şeker, ceviz", "450 kcal")
+        19 -> if (isEn) Pair("Flour, premium butter, yeast", "260 kcal") else Pair("Un, birinci sınıf tereyağı, maya", "260 kcal")
+        20 -> if (isEn) Pair("Whole wheat bread, gouda cheese, tomato, lettuce", "320 kcal") else Pair("Tam buğday ekmeği, gouda peyniri, domates, marul", "320 kcal")
+        21 -> if (isEn) Pair("Flour, butter, brown sugar, chocolate chips", "210 kcal") else Pair("Un, tereyağı, esmer şeker, damla çikolata", "210 kcal")
+        else -> Pair("", "")
+    }
+}
+

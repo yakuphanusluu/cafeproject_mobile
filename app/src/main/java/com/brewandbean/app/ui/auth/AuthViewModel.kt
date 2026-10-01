@@ -1,4 +1,4 @@
-package com.brewandbean.app.ui.auth
+﻿package com.brewandbean.app.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,6 +12,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
+    private val gameRepository: com.brewandbean.app.data.repository.GameRepository,
     private val repository: AuthRepository
 ) : ViewModel() {
 
@@ -97,7 +98,7 @@ class AuthViewModel @Inject constructor(
                 _infoMessage.value = if (com.brewandbean.app.util.LanguageManager.isEnglish.value) {
                     "Password reset email sent!"
                 } else {
-                    "Şifre sıfırlama e-postası gönderildi!"
+                    "Åifre sıfırlama e-postası gönderildi!"
                 }
             } else {
                 _authError.value = getErrorMessage(result.exceptionOrNull())
@@ -116,7 +117,7 @@ class AuthViewModel @Inject constructor(
                 _infoMessage.value = if (com.brewandbean.app.util.LanguageManager.isEnglish.value) {
                     "Password updated successfully."
                 } else {
-                    "Şifreniz başarıyla değiştirildi."
+                    "Åifreniz başarıyla değiştirildi."
                 }
             } else {
                 _authError.value = getErrorMessage(result.exceptionOrNull())
@@ -142,7 +143,7 @@ class AuthViewModel @Inject constructor(
             is com.google.firebase.auth.FirebaseAuthUserCollisionException -> 
                 if (isEn) "This email is already in use." else "Bu e-posta adresi zaten kullanımda."
             is com.google.firebase.auth.FirebaseAuthWeakPasswordException -> 
-                if (isEn) "Password is too weak. Must be at least 6 characters." else "Şifre çok zayıf. En az 6 karakter olmalıdır."
+                if (isEn) "Password is too weak. Must be at least 6 characters." else "Åifre çok zayıf. En az 6 karakter olmalıdır."
             else -> e.localizedMessage ?: if (isEn) "An unknown error occurred." else "Bilinmeyen bir hata oluştu."
         }
     }
@@ -162,4 +163,26 @@ class AuthViewModel @Inject constructor(
     fun clearSuccess() {
         _authSuccess.value = null
     }
+
+    fun convertStarDust() {
+        val token = repository.getToken() ?: return
+        val isEn = com.brewandbean.app.util.LanguageManager.isEnglish.value
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val result = gameRepository.convertStarDust(token, 100)
+                if (result.success) {
+                    _infoMessage.value = if (isEn) "Star dust converted! 100 ✨ -> 1 ⭐" else "Yıldız dönüştürüldü! 100 ✨ -> 1 ⭐"
+                    repository.refreshStars()
+                } else {
+                    _authError.value = if (isEn) "Conversion failed" else "Dönüşüm başarısız"
+                }
+            } catch (e: Exception) {
+                _authError.value = if (isEn) "Connection error: ${e.message}" else "Bağlantı hatası: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
 }
+

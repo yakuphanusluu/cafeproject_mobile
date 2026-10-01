@@ -163,7 +163,7 @@ class CustomerViewModel @Inject constructor(
                     cafeLocation.latitude, cafeLocation.longitude
                 )
                 if (distance > cafeLocation.radius) {
-                    _locationError.value = if (isEn) "You must be near the cafe to place an order. You are currently ${distance.toInt()} meters away." else "Sipariş verebilmek için kafeye yakın olmanız gerekiyor. Şu an ${distance.toInt()} metre uzaktasınız."
+                    _locationError.value = if (isEn) "You must be within 100 meters of the cafe to place an order." else "Sipariş verebilmek için kafeye 100 metreden yakın olmalısınız."
                     _isLoading.value = false
                     return@launch
                 }

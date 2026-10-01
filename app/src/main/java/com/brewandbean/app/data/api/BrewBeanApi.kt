@@ -15,7 +15,11 @@ data class CafeLocationResponse(
     val radius: Int = 100
 )
 
-data class StarsResponse(val stars: Int)
+data class StarsResponse(
+    val stars: Int,
+    @com.google.gson.annotations.SerializedName("star_dust")
+    val starDust: Int = 0
+)
 
 interface BrewBeanApi {
     @POST("orders.php")
@@ -32,4 +36,20 @@ interface BrewBeanApi {
     
     @GET("get_stars.php")
     suspend fun getStars(@Query("token") token: String): StarsResponse
+
+    @GET("game.php")
+    suspend fun canPlay(
+        @Query("action") action: String = "can_play",
+        @Query("token") token: String
+    ): com.brewandbean.app.data.model.CanPlayResponse
+
+    @POST("game.php?action=submit_score")
+    suspend fun submitScore(
+        @Body request: com.brewandbean.app.data.model.SubmitScoreRequest
+    ): com.brewandbean.app.data.model.SubmitScoreResponse
+
+    @POST("stardust.php?action=convert")
+    suspend fun convertStarDust(
+        @Body request: com.brewandbean.app.data.model.ConvertDustRequest
+    ): com.brewandbean.app.data.model.ConvertDustResponse
 }

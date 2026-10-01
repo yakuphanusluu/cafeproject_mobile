@@ -4,5 +4,6 @@ data class UserData(
     val fullName: String,
     val username: String,
     val email: String,
-    val stars: Int = 0
+    val stars: Int = 0,
+    val starDust: Int = 0
 )

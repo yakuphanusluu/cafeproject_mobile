@@ -1,4 +1,4 @@
-package com.brewandbean.app.ui.customer
+﻿package com.brewandbean.app.ui.customer
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -24,6 +24,7 @@ fun ProfileScreen(
     onBack: () -> Unit,
     onLogoutSuccess: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val currentUser by authViewModel.currentUser.collectAsState()
     val isEmailPasswordProvider = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.providerData?.any { it.providerId == "password" } == true
 
@@ -33,26 +34,33 @@ fun ProfileScreen(
 
     val infoMessage by authViewModel.infoMessage.collectAsState()
     val authError by authViewModel.authError.collectAsState()
-    val snackbarHostState = androidx.compose.runtime.remember { SnackbarHostState() }
+    val showNotification = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    val isErrorNotification = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
     androidx.compose.runtime.LaunchedEffect(infoMessage) {
         if (infoMessage != null) {
-            snackbarHostState.showSnackbar(infoMessage!!)
+            isErrorNotification.value = false
+            showNotification.value = infoMessage!!
+            kotlinx.coroutines.delay(2500)
+            showNotification.value = null
             authViewModel.clearInfoMessage()
         }
     }
 
     androidx.compose.runtime.LaunchedEffect(authError) {
         if (authError != null) {
-            snackbarHostState.showSnackbar(authError!!)
+            isErrorNotification.value = true
+            showNotification.value = authError!!
+            kotlinx.coroutines.delay(2500)
+            showNotification.value = null
             authViewModel.clearError()
         }
     }
 
     val isEn = com.brewandbean.app.util.LanguageManager.isEnglish.collectAsState().value
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(if (isEn) "My Profile" else "Profilim") },
@@ -113,6 +121,62 @@ fun ProfileScreen(
                     }
                 }
                 
+                                Spacer(modifier = Modifier.height(16.dp))
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFFFF3E0), // Açık turuncu
+                    shadowElevation = 2.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                if (isEn) "Star Dust:" else "Yıldız Tozu:",
+                                fontWeight = FontWeight.SemiBold, fontSize = 16.sp
+                            )
+                            Text(
+                                "100 ✨ = 1 ⭐",
+                                fontSize = 12.sp, color = Color(0xFF7A7A7A)
+                            )
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("✨", fontSize = 24.sp, modifier = Modifier.padding(end = 8.dp))
+                            Text(
+                                "${currentUser?.starDust ?: 0}",
+                                fontWeight = FontWeight.Bold, fontSize = 24.sp,
+                                color = Color(0xFFF57F17)
+                            )
+                        }
+                    }
+                }
+                
+                if ((currentUser?.starDust ?: 0) >= 100) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            com.brewandbean.app.util.VibrationHelper.vibrate(context, 60)
+                            authViewModel.convertStarDust()
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth(0.9f)
+                            .height(56.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFC8956C)
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(
+                            if (isEn) "⭐ Convert to Star" else "⭐ Yıldıza Dönüştür",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.height(48.dp))
 
                 if (isEmailPasswordProvider) {
@@ -145,6 +209,32 @@ fun ProfileScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
                 ) {
                     Text(if (isEn) "Log out" else "Çıkış Yap", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
+        }
+    }
+
+        androidx.compose.animation.AnimatedVisibility(
+            visible = showNotification.value != null,
+            enter = androidx.compose.animation.slideInVertically(initialOffsetY = { -it }) + androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.slideOutVertically(targetOffsetY = { -it }) + androidx.compose.animation.fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 16.dp, start = 16.dp, end = 16.dp)
+        ) {
+            showNotification.value?.let { msg ->
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = if (isErrorNotification.value) Color(0xFFD32F2F) else Color(0xFF2D8A4E)),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 64.dp) // Below top bar
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(if (isErrorNotification.value) "⚠️" else "✨", fontSize = 24.sp)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(msg.replace("✅ ", ""), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    }
                 }
             }
         }

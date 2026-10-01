@@ -86,6 +86,7 @@ class MainActivity : ComponentActivity() {
                                 MenuScreen(
                                     viewModel = customerViewModel,
                                     onCartClick = { navController.navigate("cart") },
+                                    onGameClick = { navController.navigate("game") },
                                     onProfileClick = {
                                         if (authViewModel.currentUser.value != null) {
                                             navController.navigate("profile")
@@ -109,6 +110,11 @@ class MainActivity : ComponentActivity() {
                             composable("cart") {
                                 CartScreen(
                                     viewModel = customerViewModel,
+                                    onBack = { navController.popBackStack() }
+                                )
+                            }
+                            composable("game") {
+                                com.brewandbean.app.ui.game.GameScreen(
                                     onBack = { navController.popBackStack() }
                                 )
                             }

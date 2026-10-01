@@ -31,9 +31,9 @@ class AuthRepository @Inject constructor(
                 coroutineScope.launch {
                     try {
                         val starsRes = api.getStars(user.uid)
-                        _currentUser.value = user.toUserData(starsRes.stars)
+                        _currentUser.value = user.toUserData(starsRes.stars, starsRes.starDust)
                     } catch (e: Exception) {
-                        _currentUser.value = user.toUserData(0)
+                        _currentUser.value = user.toUserData(0, 0)
                     }
                 }
             } else {
@@ -48,7 +48,7 @@ class AuthRepository @Inject constructor(
             coroutineScope.launch {
                 try {
                     val starsRes = api.getStars(user.uid)
-                    _currentUser.value = user.toUserData(starsRes.stars)
+                    _currentUser.value = user.toUserData(starsRes.stars, starsRes.starDust)
                 } catch (e: Exception) {
                     // Fail silently, keep current
                 }
@@ -68,8 +68,8 @@ class AuthRepository @Inject constructor(
             val authResult = firebaseAuth.signInWithCredential(credential).await()
             val user = authResult.user
             if (user != null) {
-                val stars = try { api.getStars(user.uid).stars } catch(e: Exception) { 0 }
-                val userData = user.toUserData(stars)
+                val starsRes = try { api.getStars(user.uid) } catch(e: Exception) { com.brewandbean.app.data.api.StarsResponse(0, 0) }
+                val userData = user.toUserData(starsRes.stars, starsRes.starDust)
                 _currentUser.value = userData
                 Result.success(userData)
             } else {
@@ -93,8 +93,8 @@ class AuthRepository @Inject constructor(
                     return Result.failure(Exception(msg))
                 }
                 
-                val stars = try { api.getStars(user.uid).stars } catch(e: Exception) { 0 }
-                val userData = user.toUserData(stars)
+                val starsRes = try { api.getStars(user.uid) } catch(e: Exception) { com.brewandbean.app.data.api.StarsResponse(0, 0) }
+                val userData = user.toUserData(starsRes.stars, starsRes.starDust)
                 _currentUser.value = userData
                 Result.success(userData)
             } else {
@@ -164,12 +164,13 @@ class AuthRepository @Inject constructor(
         _currentUser.value = null
     }
 
-    private fun FirebaseUser.toUserData(fetchedStars: Int = 0): UserData {
+    private fun FirebaseUser.toUserData(fetchedStars: Int = 0, fetchedStarDust: Int = 0): UserData {
         return UserData(
             fullName = displayName ?: "Misafir",
             username = email?.substringBefore("@") ?: "",
             email = email ?: "",
-            stars = fetchedStars
+            stars = fetchedStars,
+            starDust = fetchedStarDust
         )
     }
 }

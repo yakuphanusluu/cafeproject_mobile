@@ -90,7 +90,7 @@ fun LoginScreen(
                     color = Color(0xFF1A1A2E)
                 )
                 Text(
-                    text = "— Est. 2024 —",
+                    text = "— Est. 2026 —",
                     color = Color(0xFFC8956C),
                     letterSpacing = 2.sp,
                     fontSize = 14.sp
