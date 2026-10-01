@@ -89,10 +89,7 @@ fun CartScreen(
         val userStars = currentUser?.stars ?: 0
         if (userStars >= 10 && cartItems.size == 1) {
             val item = cartItems[0]
-            if (item.quantity == 1 && item.product.category.contains("kahve")) {
-                val s = if(isEn) item.size.labelEn else item.size.label.lowercase()
-                s == "tek" || s == "s" || s == "single" || s == "k\u00FC\u00E7\u00FCk"
-            } else false
+            item.quantity == 1 && item.product.category.contains("kahve") && item.selectedSizeIndex == 0
         } else false
     }
     LaunchedEffect(orderStatus) {
@@ -509,7 +506,7 @@ fun CheckoutDialog(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column {
-                                Text("⭐ 10 Yıldız Kullan", fontWeight = FontWeight.Bold, color = Color(0xFFF57F17))
+                                Text(if(isEn) "⭐ Use 10 Stars" else "⭐ 10 Yıldız Kullan", fontWeight = FontWeight.Bold, color = Color(0xFFF57F17))
                                 Text(if(isEn) "1 Small Coffee Free!" else "1 Küçük Kahve Bedava!", fontSize = 12.sp, color = Color(0xFFF57F17))
                             }
                             Switch(
