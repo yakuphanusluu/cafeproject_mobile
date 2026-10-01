@@ -44,8 +44,10 @@ fun GameScreen(
 
     when (gameState) {
         GameState.IDLE -> {
+            val isGuest by viewModel.isGuest.collectAsState()
             IdleScreen(
                 canPlay = canPlay,
+                isGuest = isGuest,
                 onStart = { viewModel.startGame() },
                 onBack = onBack,
                 isEn = isEn
@@ -66,7 +68,7 @@ fun GameScreen(
 }
 
 @Composable
-fun IdleScreen(canPlay: Boolean?, onStart: () -> Unit, onBack: () -> Unit, isEn: Boolean) {
+fun IdleScreen(canPlay: Boolean?, isGuest: Boolean, onStart: () -> Unit, onBack: () -> Unit, isEn: Boolean) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -100,7 +102,7 @@ fun IdleScreen(canPlay: Boolean?, onStart: () -> Unit, onBack: () -> Unit, isEn:
                 .padding(bottom = 32.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            Column(modifier = Modifier.padding(24.dp)) {
+                        Column(modifier = Modifier.padding(24.dp)) {
                 Text(if (isEn) "Rules:" else "Kurallar:", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = PrimaryColor, modifier = Modifier.padding(bottom = 12.dp))
                 Text("⏱️ 60 ${if (isEn) "Seconds" else "Saniye"}")
                 Text("✨ ${if (isEn) "12 Star Dust per match" else "Eşleşme başına 12 Toz"}")
@@ -129,7 +131,15 @@ fun IdleScreen(canPlay: Boolean?, onStart: () -> Unit, onBack: () -> Unit, isEn:
                     .fillMaxWidth()
                     .height(56.dp)
             ) {
-                Text(if (isEn) "You have played today" else "Bugünkü hakkınızı kullandınız", fontSize = 16.sp)
+                Text(
+                    text = if (isGuest) {
+                        if (isEn) "Please log in to play" else "Oynamak için lütfen giriş yapın"
+                    } else {
+                        if (isEn) "You have played today" else "Bugünkü hakkınızı kullandınız"
+                    },
+                    fontSize = 16.sp,
+                    textAlign = TextAlign.Center
+                )
             }
         } else {
             CircularProgressIndicator(color = AccentColor)

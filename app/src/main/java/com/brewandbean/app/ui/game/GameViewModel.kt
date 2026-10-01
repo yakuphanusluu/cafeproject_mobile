@@ -32,6 +32,9 @@ class GameViewModel @Inject constructor(
     private val _cards = MutableStateFlow<List<MemoryCard>>(emptyList())
     val cards: StateFlow<List<MemoryCard>> = _cards.asStateFlow()
 
+    private val _isGuest = MutableStateFlow(false)
+    val isGuest: StateFlow<Boolean> = _isGuest.asStateFlow()
+
     private val _canPlay = MutableStateFlow<Boolean?>(null)
     val canPlay: StateFlow<Boolean?> = _canPlay.asStateFlow()
 
@@ -53,7 +56,13 @@ class GameViewModel @Inject constructor(
     private var isProcessingMatch = false
 
     fun checkCanPlay() {
-        val token = authRepository.getToken() ?: return
+        val token = authRepository.getToken()
+        if (token == null) {
+            _isGuest.value = true
+            _canPlay.value = false
+            return
+        }
+        _isGuest.value = false
         viewModelScope.launch {
             _isLoading.value = true
             try {
